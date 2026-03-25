@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestrion-demo
+  namespace: insurance-app
+  labels:
+    app: orchestrion-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: orchestrion-demo
+  template:
+    metadata:
+      labels:
+        app: orchestrion-demo
+        # Unified Service Tagging — Admission Controller reads these to inject DD_ENV/DD_SERVICE/DD_VERSION
+        tags.datadoghq.com/env: "demo2"
+        tags.datadoghq.com/service: "orchestrion-demo"
+        tags.datadoghq.com/version: "1.0.0"
+        # Webhook objectSelector requires this as a LABEL to trigger mutation
+        admission.datadoghq.com/enabled: "true"
+    spec:
+      containers:
+        - name: orchestrion-demo
+          image: wwongpai/orchestrion-demo:1.0.0
+          ports:
+            - containerPort: 8090
+          env:
+            - name: PORT
+              value: "8090"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8090
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8090
+            initialDelaySeconds: 10
+            periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestrion-demo-service
+  namespace: insurance-app
+spec:
+  selector:
+    app: orchestrion-demo
+  ports:
+    - port: 80
+      targetPort: 8090

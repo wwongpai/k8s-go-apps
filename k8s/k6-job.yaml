@@ -1,0 +1,142 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k6-script
+  namespace: insurance-app
+data:
+  load-test.js: |
+    import http from 'k6/http';
+    import { check, sleep } from 'k6';
+    import { Rate } from 'k6/metrics';
+
+    const errorRate = new Rate('errors');
+    const GATEWAY = __ENV.GATEWAY_URL || 'http://api-gateway-service:8080';
+    const WEBAPP  = __ENV.WEBAPP_URL  || 'http://web-app-service:80';
+
+    export const options = {
+      stages: [
+        { duration: '1m', target: 10 },
+        { duration: '3m', target: 20 },
+        { duration: '1m', target: 50 },
+        { duration: '1m', target: 0  },
+      ],
+      thresholds: {
+        http_req_duration: ['p(95)<2000'],
+        errors: ['rate<0.1'],
+      },
+    };
+
+    const syntheticCustomers = [
+      { firstName: 'Alice', lastName: 'TestUser',   email: 'alice@example.invalid',  dateOfBirth: '1985-03-15' },
+      { firstName: 'Bob',   lastName: 'SampleData', email: 'bob@example.invalid',    dateOfBirth: '1990-07-22' },
+      { firstName: 'Carol', lastName: 'DemoUser',   email: 'carol@example.invalid',  dateOfBirth: '1978-11-30' },
+    ];
+
+    export default function () {
+      // Web app health
+      check(http.get(`${WEBAPP}/`), { 'webapp 200': r => r.status === 200 });
+
+      // Create a customer with unique email to avoid conflicts
+      const c = syntheticCustomers[Math.floor(Math.random() * syntheticCustomers.length)];
+      const uniqueEmail = `${c.firstName.toLowerCase()}.${Date.now()}.${Math.floor(Math.random()*9999)}@example.invalid`;
+
+      const createRes = http.post(
+        `${GATEWAY}/api/v1/customers`,
+        JSON.stringify({ ...c, email: uniqueEmail, phone: '+155500' + Math.floor(Math.random() * 9999) }),
+        { headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer demo-token' } }
+      );
+      check(createRes, { 'create customer 201': r => r.status === 201 });
+      errorRate.add(createRes.status !== 201);
+
+      // Calculate auto premium
+      const calcRes = http.post(
+        `${GATEWAY}/api/v1/calculate/auto`,
+        JSON.stringify({ age: 30, vehicleYear: 2022, vehicleType: 'sedan', drivingRecord: 'clean' }),
+        { headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer demo-token' } }
+      );
+      check(calcRes, { 'calculate 200': r => r.status === 200 });
+
+      if (createRes.status === 201) {
+        const customerId = createRes.json('id');
+
+        // Create a policy
+        const policyRes = http.post(
+          `${GATEWAY}/api/v1/policies`,
+          JSON.stringify({
+            customerId,
+            type: 'auto',
+            coverage: 'comprehensive',
+            premium: 1200.00,
+            startDate: '2025-01-01',
+            endDate: '2026-01-01',
+          }),
+          { headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer demo-token' } }
+        );
+        check(policyRes, { 'create policy 201': r => r.status === 201 });
+
+        if (policyRes.status === 201) {
+          const policyId = policyRes.json('id');
+
+          // Submit a claim
+          const claimRes = http.post(
+            `${GATEWAY}/api/v1/claims`,
+            JSON.stringify({
+              policyId,
+              description: 'Load test claim — synthetic data only',
+              amount: 2500.00,
+              incidentDate: '2025-06-15',
+            }),
+            { headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer demo-token' } }
+          );
+          check(claimRes, { 'create claim 201': r => r.status === 201 });
+        }
+      }
+
+      // Read endpoints
+      check(
+        http.get(`${GATEWAY}/api/v1/claims/pending`,
+          { headers: { 'Authorization': 'Bearer demo-token' } }),
+        { 'pending claims 200': r => r.status === 200 }
+      );
+      check(
+        http.get(`${GATEWAY}/api/v1/claims/stats`,
+          { headers: { 'Authorization': 'Bearer demo-token' } }),
+        { 'claim stats 200': r => r.status === 200 }
+      );
+
+      sleep(1);
+    }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k6-load-test
+  namespace: insurance-app
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: k6
+        image: grafana/k6:latest
+        args: ["run", "/scripts/load-test.js"]
+        env:
+        - name: GATEWAY_URL
+          value: "http://api-gateway-service:80"
+        - name: WEBAPP_URL
+          value: "http://web-app-service:80"
+        volumeMounts:
+        - name: k6-script
+          mountPath: /scripts
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 1000m
+            memory: 512Mi
+      volumes:
+      - name: k6-script
+        configMap:
+          name: k6-script

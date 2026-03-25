@@ -1,0 +1,22 @@
+# Go binaries
+*/bin/
+services/*/service
+services/orchestrion-demo/orchestrion-demo
+
+# Go module cache artifacts
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# Secrets — never commit real keys
+*.env
+.env
+secrets.yaml
+# Allow template
+!k8s/secrets-template.txt

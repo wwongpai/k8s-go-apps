@@ -1,0 +1,81 @@
+# datadog-values.yaml
+# Datadog Helm chart values for insurance-app on GKE cluster: warach-gke-go-app
+# API/App keys are sourced from Kubernetes Secrets — never stored in this file.
+
+datadog:
+  apiKeyExistingSecret: datadog-secret
+  appKeyExistingSecret: datadog-secret
+  site: datadoghq.com
+  clusterName: warach-gke-go-app
+
+  # APM via TCP on port 8126
+  apm:
+    portEnabled: true
+    port: 8126
+
+  # DogStatsD
+  dogstatsd:
+    useHostPort: true
+    nonLocalTraffic: true
+
+  # Log collection — tails container stdout/stderr
+  logs:
+    enabled: true
+    containerCollectAll: true
+
+  # Process + container monitoring
+  processAgent:
+    enabled: true
+    processCollection: true
+
+  kubeStateMetricsCore:
+    enabled: true
+
+  networkMonitoring:
+    enabled: true
+
+  tags:
+    - "env:demo2"
+    - "cluster:warach-gke-go-app"
+
+# Cluster Agent — required for Admission Controller
+clusterAgent:
+  enabled: true
+  replicas: 2
+
+  admissionController:
+    enabled: true
+    # Only mutate pods that have the admission.datadoghq.com/enabled: "true" annotation
+    mutateUnlabelled: false
+
+    # Inject DD_AGENT_HOST, DD_TRACE_AGENT_URL, DD_ENTITY_ID, DD_EXTERNAL_ENV
+    injectConfig:
+      enabled: true
+
+    # Inject DD_ENV, DD_SERVICE, DD_VERSION from tags.datadoghq.com/* pod labels
+    injectTags:
+      enabled: true
+
+    # hostip: DD_AGENT_HOST = node IP, DD_TRACE_AGENT_URL = http://<nodeIP>:8126
+    # This is TCP APM injection — the Orchestrion-compiled binary connects here at startup
+    configMode: hostip
+
+agents:
+  enabled: true
+  containers:
+    agent:
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+    traceAgent:
+      env:
+        # Disable agent-side stats-by-span-kind so raw traces are forwarded to Datadog
+        # (agent 7.76+ defaults to computing stats from span kinds and dropping raw spans)
+        - name: DD_APM_COMPUTE_STATS_BY_SPAN_KIND
+          value: "false"
+        - name: DD_APM_PEER_TAGS_AGGREGATION
+          value: "false"

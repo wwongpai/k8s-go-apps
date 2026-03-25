@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: insurance-app
+  labels:
+    app: api-gateway
+    tags.datadoghq.com/env: demo2
+    tags.datadoghq.com/service: api-gateway
+    tags.datadoghq.com/version: "1.0.0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+        tags.datadoghq.com/env: demo2
+        tags.datadoghq.com/service: api-gateway
+        tags.datadoghq.com/version: "1.0.0"
+        admission.datadoghq.com/enabled: "true"
+      annotations:
+        admission.datadoghq.com/enabled: "true"
+    spec:
+      containers:
+      - name: api-gateway
+        image: wwongpai/insurance-api-gateway:1.0.3
+        ports:
+        - containerPort: 8080
+        env:
+        - name: POLICY_SERVICE_URL
+          value: http://policy-service:8081
+        - name: CLAIMS_SERVICE_URL
+          value: http://claims-service:8082
+        - name: CUSTOMER_SERVICE_URL
+          value: http://customer-service:8083
+        - name: CALCULATOR_SERVICE_URL
+          value: http://premium-calculator-service:8084
+        - name: NOTIFICATION_SERVICE_URL
+          value: http://notification-service:8085
+        - name: PORT
+          value: "8080"
+        - name: DD_PROFILING_ENABLED
+          value: "true"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway-service
+  namespace: insurance-app
+spec:
+  selector:
+    app: api-gateway
+  ports:
+  - port: 80
+    targetPort: 8080
+  type: LoadBalancer

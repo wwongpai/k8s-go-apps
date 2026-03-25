@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InsuranceApp — Dashboard</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a2e; }
+  nav { background: #16213e; color: #fff; padding: 0 24px; display: flex; align-items: center; height: 56px; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
+  nav .logo { font-size: 1.2rem; font-weight: 700; margin-right: 32px; color: #e94560; }
+  nav a { color: #ccc; text-decoration: none; padding: 8px 14px; border-radius: 4px; cursor: pointer; font-size: .9rem; transition: background .2s; }
+  nav a:hover, nav a.active { background: #e94560; color: #fff; }
+  main { max-width: 1100px; margin: 32px auto; padding: 0 16px; }
+  .page { display: none; }
+  .page.active { display: block; }
+  h2 { font-size: 1.4rem; margin-bottom: 20px; color: #16213e; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+  .card .label { font-size: .8rem; color: #777; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .05em; }
+  .card .value { font-size: 2rem; font-weight: 700; color: #16213e; }
+  .card .value.green { color: #27ae60; }
+  .card .value.blue { color: #2980b9; }
+  .card .value.orange { color: #e67e22; }
+  .form-group { margin-bottom: 16px; }
+  label { display: block; font-size: .85rem; color: #555; margin-bottom: 6px; font-weight: 500; }
+  input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: .95rem; outline: none; transition: border .2s; }
+  input:focus, select:focus { border-color: #e94560; }
+  .btn { padding: 10px 20px; background: #e94560; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: .9rem; font-weight: 600; transition: background .2s; }
+  .btn:hover { background: #c73652; }
+  .btn.secondary { background: #2980b9; }
+  .btn.secondary:hover { background: #1f6a9a; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .result-box { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.1); margin-top: 20px; }
+  .result-box pre { background: #f8f9fa; padding: 12px; border-radius: 4px; overflow-x: auto; font-size: .85rem; }
+  .alert { padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; font-size: .9rem; }
+  .alert.error { background: #fdecea; color: #c0392b; border: 1px solid #f5c6cb; }
+  .alert.success { background: #eafaf1; color: #1e8449; border: 1px solid #a9dfbf; }
+  .loading { color: #777; font-style: italic; }
+  .section-card { background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+  hr { border: none; border-top: 1px solid #eee; margin: 24px 0; }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="logo">InsureApp</span>
+  <a onclick="showPage('dashboard')" class="active" id="nav-dashboard">Dashboard</a>
+  <a onclick="showPage('policies')" id="nav-policies">Policies</a>
+  <a onclick="showPage('claims')" id="nav-claims">Claims</a>
+  <a onclick="showPage('calculator')" id="nav-calculator">Calculator</a>
+  <a onclick="showPage('profile')" id="nav-profile">Profile</a>
+</nav>
+
+<main>
+
+<!-- DASHBOARD -->
+<div class="page active" id="page-dashboard">
+  <h2>Dashboard</h2>
+  <div class="cards" id="stats-cards">
+    <div class="card"><div class="label">Total Claims</div><div class="value" id="stat-total">—</div></div>
+    <div class="card"><div class="label">Pending Claims</div><div class="value orange" id="stat-pending">—</div></div>
+    <div class="card"><div class="label">Approved</div><div class="value green" id="stat-approved">—</div></div>
+    <div class="card"><div class="label">Paid</div><div class="value blue" id="stat-paid">—</div></div>
+  </div>
+  <div class="result-box">
+    <strong>Recent Pending Claims</strong>
+    <div id="pending-list" class="loading" style="margin-top:12px">Loading...</div>
+  </div>
+</div>
+
+<!-- POLICIES -->
+<div class="page" id="page-policies">
+  <h2>Policies</h2>
+  <div class="section-card">
+    <strong>Create Policy</strong>
+    <hr>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Customer ID (UUID)</label>
+        <input type="text" id="pol-customer-id" placeholder="e.g. 550e8400-e29b-41d4-a716-...">
+      </div>
+      <div class="form-group">
+        <label>Policy Type</label>
+        <select id="pol-type">
+          <option value="auto">Auto</option>
+          <option value="home">Home</option>
+          <option value="life">Life</option>
+          <option value="health">Health</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Coverage</label>
+        <select id="pol-coverage">
+          <option value="basic">Basic</option>
+          <option value="standard">Standard</option>
+          <option value="comprehensive">Comprehensive</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Annual Premium ($)</label>
+        <input type="number" id="pol-premium" value="1200" step="0.01">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Start Date</label>
+        <input type="date" id="pol-start">
+      </div>
+      <div class="form-group">
+        <label>End Date</label>
+        <input type="date" id="pol-end">
+      </div>
+    </div>
+    <button class="btn" onclick="createPolicy()">Create Policy</button>
+    <div id="policy-result"></div>
+
+    <hr>
+    <strong>Find Policies by Customer ID</strong>
+    <div class="form-row" style="margin-top:12px">
+      <div class="form-group">
+        <label>Customer ID</label>
+        <input type="text" id="pol-search-customer" placeholder="Customer UUID">
+      </div>
+      <div class="form-group" style="display:flex; align-items:flex-end">
+        <button class="btn secondary" onclick="searchPolicies()">Search</button>
+      </div>
+    </div>
+    <div id="policies-list"></div>
+  </div>
+</div>
+
+<!-- CLAIMS -->
+<div class="page" id="page-claims">
+  <h2>Claims</h2>
+  <div class="section-card">
+    <strong>Submit Claim</strong>
+    <hr>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Policy ID (UUID)</label>
+        <input type="text" id="clm-policy-id" placeholder="Policy UUID">
+      </div>
+      <div class="form-group">
+        <label>Claim Amount ($)</label>
+        <input type="number" id="clm-amount" value="2500" step="0.01">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Incident Date</label>
+        <input type="date" id="clm-date">
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <input type="text" id="clm-desc" placeholder="Brief description of claim">
+      </div>
+    </div>
+    <button class="btn" onclick="submitClaim()">Submit Claim</button>
+    <div id="claim-result"></div>
+
+    <hr>
+    <button class="btn secondary" onclick="loadPendingClaims()">Refresh Pending Claims</button>
+    <div id="claims-pending-list" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<!-- CALCULATOR -->
+<div class="page" id="page-calculator">
+  <h2>Premium Calculator</h2>
+  <div class="section-card">
+    <strong>Auto Insurance</strong>
+    <hr>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Age</label>
+        <input type="number" id="calc-age" value="35">
+      </div>
+      <div class="form-group">
+        <label>Vehicle Year</label>
+        <input type="number" id="calc-year" value="2022">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Vehicle Type</label>
+        <select id="calc-type">
+          <option value="sedan">Sedan</option>
+          <option value="suv">SUV</option>
+          <option value="truck">Truck</option>
+          <option value="sports">Sports</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Driving Record</label>
+        <select id="calc-record">
+          <option value="clean">Clean</option>
+          <option value="minor">Minor Incidents</option>
+          <option value="major">Major Incidents</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn" onclick="calculatePremium()">Calculate Premium</button>
+    <div id="calc-result"></div>
+  </div>
+</div>
+
+<!-- PROFILE -->
+<div class="page" id="page-profile">
+  <h2>Profile</h2>
+  <div class="section-card">
+    <strong>Demo User</strong>
+    <hr style="margin:16px 0">
+    <div class="form-row">
+      <div class="form-group">
+        <label>First Name</label>
+        <input type="text" value="Demo" disabled>
+      </div>
+      <div class="form-group">
+        <label>Last Name</label>
+        <input type="text" value="User" disabled>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" value="demo@example.invalid" disabled>
+      </div>
+      <div class="form-group">
+        <label>Phone</label>
+        <input type="text" value="+15551234567" disabled>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Status</label>
+      <input type="text" value="Verified ✓" disabled style="color:#27ae60;font-weight:600">
+    </div>
+    <p style="margin-top:16px;font-size:.85rem;color:#888">This is synthetic demo data only (email ends in @example.invalid).</p>
+  </div>
+</div>
+
+</main>
+
+<script>
+// Determine gateway URL
+function getGateway() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('gateway') || (window.location.origin === 'null' ? 'http://localhost:8080' : window.location.origin);
+}
+
+const GW = getGateway();
+const TOKEN = 'Bearer demo-token';
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'claims') loadPendingClaims();
+}
+
+function showResult(id, data, isError) {
+  const el = document.getElementById(id);
+  const cls = isError ? 'error' : 'success';
+  el.innerHTML = `<div class="alert ${cls}"><pre>${JSON.stringify(data, null, 2)}</pre></div>`;
+}
+
+async function apiFetch(path, options = {}) {
+  const url = GW + '/api/v1' + path;
+  const resp = await fetch(url, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', 'Authorization': TOKEN, ...(options.headers || {}) }
+  });
+  const text = await resp.text();
+  let data;
+  try { data = JSON.parse(text); } catch { data = text; }
+  return { ok: resp.ok, status: resp.status, data };
+}
+
+async function loadDashboard() {
+  try {
+    const stats = await apiFetch('/claims/stats');
+    if (stats.ok) {
+      document.getElementById('stat-total').textContent = stats.data.total || 0;
+      document.getElementById('stat-pending').textContent = stats.data.pending || 0;
+      document.getElementById('stat-approved').textContent = stats.data.approved || 0;
+      document.getElementById('stat-paid').textContent = stats.data.paid || 0;
+    }
+    const pending = await apiFetch('/claims/pending');
+    const list = document.getElementById('pending-list');
+    if (pending.ok && pending.data.claims && pending.data.claims.length > 0) {
+      list.innerHTML = '<pre>' + JSON.stringify(pending.data.claims.slice(0, 3), null, 2) + '</pre>';
+    } else {
+      list.textContent = 'No pending claims.';
+    }
+  } catch(e) {
+    document.getElementById('pending-list').textContent = 'Could not connect to API gateway.';
+  }
+}
+
+async function createPolicy() {
+  const payload = {
+    customerId: document.getElementById('pol-customer-id').value,
+    type: document.getElementById('pol-type').value,
+    coverage: document.getElementById('pol-coverage').value,
+    premium: parseFloat(document.getElementById('pol-premium').value),
+    startDate: document.getElementById('pol-start').value,
+    endDate: document.getElementById('pol-end').value,
+  };
+  if (!payload.customerId) { showResult('policy-result', {error: 'Customer ID is required'}, true); return; }
+  const r = await apiFetch('/policies', { method: 'POST', body: JSON.stringify(payload) });
+  showResult('policy-result', r.data, !r.ok);
+}
+
+async function searchPolicies() {
+  const customerId = document.getElementById('pol-search-customer').value;
+  if (!customerId) { document.getElementById('policies-list').innerHTML = '<div class="alert error">Enter a Customer ID</div>'; return; }
+  const r = await apiFetch('/policies/customer/' + customerId);
+  if (r.ok) {
+    document.getElementById('policies-list').innerHTML = '<div class="result-box"><pre>' + JSON.stringify(r.data, null, 2) + '</pre></div>';
+  } else {
+    showResult('policies-list', r.data, true);
+  }
+}
+
+async function submitClaim() {
+  const payload = {
+    policyId: document.getElementById('clm-policy-id').value,
+    amount: parseFloat(document.getElementById('clm-amount').value),
+    incidentDate: document.getElementById('clm-date').value,
+    description: document.getElementById('clm-desc').value || 'Insurance claim submission',
+  };
+  if (!payload.policyId) { showResult('claim-result', {error: 'Policy ID is required'}, true); return; }
+  const r = await apiFetch('/claims', { method: 'POST', body: JSON.stringify(payload) });
+  showResult('claim-result', r.data, !r.ok);
+}
+
+async function loadPendingClaims() {
+  const r = await apiFetch('/claims/pending');
+  const el = document.getElementById('claims-pending-list');
+  if (r.ok) {
+    el.innerHTML = '<pre>' + JSON.stringify(r.data, null, 2) + '</pre>';
+  } else {
+    el.innerHTML = '<div class="alert error">Failed to load pending claims</div>';
+  }
+}
+
+async function calculatePremium() {
+  const payload = {
+    age: parseInt(document.getElementById('calc-age').value),
+    vehicleYear: parseInt(document.getElementById('calc-year').value),
+    vehicleType: document.getElementById('calc-type').value,
+    drivingRecord: document.getElementById('calc-record').value,
+  };
+  const r = await apiFetch('/calculate/auto', { method: 'POST', body: JSON.stringify(payload) });
+  const el = document.getElementById('calc-result');
+  if (r.ok) {
+    el.innerHTML = `<div class="result-box">
+      <div class="cards">
+        <div class="card"><div class="label">Annual Premium</div><div class="value green">$${r.data.premium ? r.data.premium.toFixed(2) : '—'}</div></div>
+        <div class="card"><div class="label">Risk Score</div><div class="value orange">${r.data.riskScore ? r.data.riskScore.toFixed(2) : '—'}</div></div>
+        <div class="card"><div class="label">Cache Hit</div><div class="value">${r.data.cacheHit ? 'Yes' : 'No'}</div></div>
+      </div>
+      <strong>Breakdown:</strong>
+      <pre>${JSON.stringify(r.data.breakdown, null, 2)}</pre>
+    </div>`;
+  } else {
+    el.innerHTML = `<div class="alert error"><pre>${JSON.stringify(r.data, null, 2)}</pre></div>`;
+  }
+}
+
+// Set default dates
+const today = new Date().toISOString().split('T')[0];
+const nextYear = new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0];
+document.getElementById('pol-start').value = today;
+document.getElementById('pol-end').value = nextYear;
+document.getElementById('clm-date').value = today;
+
+// Load dashboard on start
+loadDashboard();
+</script>
+</body>
+</html>

@@ -10,9 +10,10 @@ A sample Go microservices application running on a Kubernetes cluster (GKE) with
 2. [Architecture](#2-architecture)
 3. [What is Orchestrion?](#3-what-is-orchestrion)
 4. [How Orchestrion Works — and How This Repo Uses It](#4-how-orchestrion-works--and-how-this-repo-uses-it)
-5. [Manual Instrumentation (Fallback)](#5-manual-instrumentation-fallback)
-6. [Troubleshooting](#6-troubleshooting)
-7. [Cleanup](#7-cleanup)
+5. [Using Orchestrion on Go 1.19 (v0.6.x Workflow)](#5-using-orchestrion-on-go-119-v06x-workflow)
+6. [Manual Instrumentation (Fallback)](#6-manual-instrumentation-fallback)
+7. [Troubleshooting](#7-troubleshooting)
+8. [Cleanup](#8-cleanup)
 
 ---
 
@@ -295,7 +296,140 @@ Write plain, idiomatic Go. Use `//dd:span` only for your own business logic func
 
 ---
 
-## 5. Manual Instrumentation (Fallback)
+## 5. Using Orchestrion on Go 1.19 (v0.6.x Workflow)
+
+If your project is pinned to **Go 1.19** and cannot upgrade, the latest Orchestrion (v1.6.0+) is not an option. Use **Orchestrion v0.6.x** with **dd-trace-go v1.x** instead.
+
+> **Important:** Orchestrion v0.6.x uses a fundamentally different approach from v1.8.0. It is a **code-time tool** — it rewrites your source files directly and you commit the modified code. It does **not** act as a build-time proxy. Normal `go build` is used after instrumentation.
+
+### How v0.6.x Differs from v1.8.x
+
+| | v0.6.x (Go 1.19) | v1.8.x (Go 1.24) |
+|---|---|---|
+| Instrumentation timing | Modifies source files before commit | Injects at compile time, source unchanged |
+| Build command | `go build` (standard) | `orchestrion go build` |
+| Source code after | Modified `.go` files checked in | Plain, unmodified `.go` files |
+| Reversible | Yes, via `orchestrion -rm ./` | N/A — source never changed |
+| dd-trace-go version | v1.x (`gopkg.in/DataDog/dd-trace-go.v1`) | v2.x (`github.com/DataDog/dd-trace-go/v2`) |
+
+### Step-by-Step for Go 1.19
+
+**Step 1 — Install Orchestrion v0.6.x:**
+
+```sh
+go install github.com/DataDog/orchestrion@v0.6.0
+```
+
+**Step 2 — Add dd-trace-go v1 to your module:**
+
+```sh
+go get gopkg.in/DataDog/dd-trace-go.v1
+```
+
+**Step 3 — Run Orchestrion to instrument your source files:**
+
+```sh
+cd /your/project
+orchestrion -w ./
+```
+
+The `-w` flag rewrites all `.go` files in-place, injecting tracing calls for supported libraries (`net/http`, `database/sql`, `gin`, `grpc`, etc.). Review the diff before committing.
+
+**Step 4 — (Optional) Add `//dd:span` for custom business spans:**
+
+```go
+//dd:span my:tag component:risk-engine
+func calculateRisk(ctx context.Context, req RiskRequest) (float64, error) {
+    // Orchestrion injects span start/finish around this function
+    return score, nil
+}
+```
+
+The function's first parameter must be `context.Context` or include `*http.Request`.
+
+**Step 5 — Commit the instrumented files:**
+
+```sh
+go mod tidy
+git add .
+git commit -m "chore: apply orchestrion v0.6.x instrumentation"
+```
+
+**Step 6 — Build and run normally:**
+
+```sh
+go build -o /app/service .
+```
+
+No special build command needed — instrumentation is already baked into the source files.
+
+**Step 7 — Dockerfile pattern for Go 1.19:**
+
+```dockerfile
+FROM golang:1.19 AS builder
+WORKDIR /app
+
+# Install Orchestrion v0.6.x
+RUN go install github.com/DataDog/orchestrion@v0.6.0
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY *.go ./
+
+# Instrument source files in-place
+RUN orchestrion -w ./
+
+# Build normally — instrumentation is already in the source
+RUN go build -o /app/service .
+
+FROM debian:bullseye-slim
+COPY --from=builder /app/service /service
+EXPOSE 8080
+ENTRYPOINT ["/service"]
+```
+
+**Step 8 — Configure the Datadog Agent connection:**
+
+Since the Admission Controller still injects `DD_AGENT_HOST` via pod labels, the Kubernetes manifest is the same as the v1.8.x approach:
+
+```yaml
+spec:
+  template:
+    metadata:
+      labels:
+        tags.datadoghq.com/env: "production"
+        tags.datadoghq.com/service: "my-service"
+        tags.datadoghq.com/version: "1.0.0"
+        admission.datadoghq.com/enabled: "true"
+```
+
+Unlike v1.8.x, Orchestrion v0.6.x does **not** auto-start the tracer. You must call `tracer.Start()` in `main()`:
+
+```go
+import "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+
+func main() {
+    tracer.Start(
+        tracer.WithService("my-service"),
+        tracer.WithEnv("production"),
+    )
+    defer tracer.Stop()
+    // ...
+}
+```
+
+### To Undo Orchestrion Instrumentation
+
+```sh
+orchestrion -rm ./
+```
+
+This strips all injected code and restores source files to their original state.
+
+---
+
+## 6. Manual Instrumentation (Fallback)
 
 If Orchestrion is not suitable for your project (unsupported Go version, vendoring constraints, etc.), use the [Datadog Go tracing library](https://docs.datadoghq.com/tracing/trace_collection/dd_libraries/go/?tab=manualinstrumentation) directly.
 
@@ -393,7 +527,7 @@ func processPayment(ctx context.Context, amount float64) error {
 
 ---
 
-## 6. Troubleshooting
+## 7. Troubleshooting
 
 ### Quick diagnostic commands
 
@@ -450,7 +584,7 @@ kubectl rollout restart deployment --all -n insurance-app
 
 ---
 
-## 7. Cleanup
+## 8. Cleanup
 
 ```bash
 # Remove all application workloads and the namespace

@@ -101,18 +101,14 @@ The **Admission Controller** (part of the Cluster Agent) is a MutatingAdmissionW
 
 The result is a fully instrumented binary with **no Datadog imports and no code changes** in your application.
 
-### Version Compatibility Matrix
+### Version Compatibility
 
-Orchestrion follows the [official Go release policy](https://go.dev/doc/devel/release) and supports the **two most recent Go runtime releases**.
-
-| Orchestrion Version | Supported Go Versions | dd-trace-go Version |
-|---|---|---|
-| v1.8.x (current) | Go 1.24, Go 1.25 | v2.7.0+ |
-| v1.7.x | Go 1.23, Go 1.24 | v2.6.x |
-| v1.6.x | Go 1.22, Go 1.23 | v2.5.x |
+Orchestrion follows the [official Go release policy](https://go.dev/doc/devel/release) and supports the **two most recent Go runtime releases** at any given time.
 
 > **This repo uses Orchestrion v1.8.0 with Go 1.25.**
-> If your project is on an older Go version, either upgrade Go or use the matching Orchestrion release.
+> If your project is on an older Go version, check the [Orchestrion releases page](https://github.com/DataDog/orchestrion/releases) for the matching version, or upgrade Go to one of the two latest releases.
+
+For the authoritative compatibility matrix, see the [Datadog Go tracing compatibility requirements](https://docs.datadoghq.com/tracing/compatibility_requirements/go/).
 
 ### What Gets Automatically Instrumented
 

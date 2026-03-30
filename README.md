@@ -103,12 +103,19 @@ The result is a fully instrumented binary with **no Datadog imports and no code 
 
 ### Version Compatibility
 
-Orchestrion follows the [official Go release policy](https://go.dev/doc/devel/release) and supports the **two most recent Go runtime releases** at any given time.
+The table below is sourced from the actual `go.mod` of each Orchestrion release on GitHub:
 
-> **This repo uses Orchestrion v1.8.0 with Go 1.25.**
-> If your project is on an older Go version, check the [Orchestrion releases page](https://github.com/DataDog/orchestrion/releases) for the matching version, or upgrade Go to one of the two latest releases.
+| Orchestrion Version | Minimum Go Version | dd-trace-go Version |
+|---|---|---|
+| v1.6.x – v1.8.x | **Go 1.24** | v2.x |
+| v1.1.x – v1.5.x | **Go 1.23** | v1.72+ / v2.x |
+| v1.0.x | **Go 1.22** | v1.x |
+| v0.9.x | **Go 1.22** | v1.x |
 
-For the authoritative compatibility matrix, see the [Datadog Go tracing compatibility requirements](https://docs.datadoghq.com/tracing/compatibility_requirements/go/).
+> **This repo uses Orchestrion v1.8.0 + dd-trace-go v2.6.0, with services set to Go 1.25.**
+> Orchestrion v1.8.0 requires Go 1.24 at minimum. If you are on an older Go version, use the matching Orchestrion release from the table above.
+
+Datadog's support policy: the **two latest Go releases are fully supported**; the third newest is in maintenance mode. See [compatibility requirements](https://docs.datadoghq.com/tracing/compatibility_requirements/go/) for details.
 
 ### What Gets Automatically Instrumented
 

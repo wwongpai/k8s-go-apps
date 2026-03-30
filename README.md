@@ -109,8 +109,9 @@ The table below is sourced from the actual `go.mod` of each Orchestrion release 
 |---|---|---|
 | v1.6.x – v1.8.x | **Go 1.24** | v2.x |
 | v1.1.x – v1.5.x | **Go 1.23** | v1.72+ / v2.x |
-| v1.0.x | **Go 1.22** | v1.x |
-| v0.9.x | **Go 1.22** | v1.x |
+| v0.8.x – v1.0.x | **Go 1.22** | v1.x |
+| v0.7.x | **Go 1.21** | v1.x |
+| v0.6.x and earlier | **Go 1.19** | v1.x |
 
 > **This repo uses Orchestrion v1.8.0 + dd-trace-go v2.6.0, with services set to Go 1.25.**
 > Orchestrion v1.8.0 requires Go 1.24 at minimum. If you are on an older Go version, use the matching Orchestrion release from the table above.
